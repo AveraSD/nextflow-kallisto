@@ -23,6 +23,7 @@ log.info "Current user       : $USER"
 log.info "Current path       : $PWD"
 log.info "Script dir         : $baseDir"
 log.info "Working dir        : $workDir"
+log.info "Output dir         : ${params.out}"
 log.info ""
 
 genome_index = file(params.index)
