@@ -4,20 +4,19 @@
  * params.read1 = "s3://averafastq/everything_else/NA18238-b_S9_10k_1.fastq.gz"
  * params.read2 = "s3://averafastq/everything_else/NA18238-b_S9_10k_2.fastq.gz"
  * params.index = "s3://averagenomedb/kallisto/gencode.v19.lncRNA_transcripts.idx"
- * params.out = "/shared"
+ * params.out = "results/"
  */
 
 params.read1 = "~/averalajolla/averafastq/everything_else/NA18238-b_S9_10k_1.fastq.gz"
 params.read2 = "~/averalajolla/averafastq/everything_else/NA18238-b_S9_10k_2.fastq.gz"
 params.index = "/data/kallisto/gencode.v19.lncRNA_transcripts.idx"
-params.out = "/data/test"
+params.out = "results/"
 
 log.info "Kallisto P I P E L I N E         "
 log.info "================================="
 log.info "index              : ${params.index}"
 log.info "read1              : ${params.read1}"
 log.info "read2              : ${params.read2}"
-log.info "output dir         : ${params.out}"
 log.info ""
 log.info "Current home       : $HOME"
 log.info "Current user       : $USER"
@@ -26,78 +25,37 @@ log.info "Script dir         : $baseDir"
 log.info "Working dir        : $workDir"
 log.info ""
 
-/*
- * emits all reads ending with "_1" suffix and map them to pair containing the common
- * part of the name
- */
-Channel
-    .fromPath( params.read1 )
-    .ifEmpty { error "Cannot find any reads matching: ${params.read1}" }
-    .map { path -> 
-       def prefix = readPrefix(path, params.read1)
-       tuple(prefix, path) 
-    }
-    .set { reads1 } 
-  
-/*
- * as above for "_2" read pairs
- */
-Channel
-    .fromPath( params.read2 )
-    .ifEmpty { error "Cannot find any reads matching: ${params.read2}" }
-    .map { path -> 
-       def prefix = readPrefix(path, params.read2)
-       tuple(prefix, path) 
-    }
-    .set { reads2 }     
-     
-/*
- * Match the pairs emittedb by "read1" and "read2" channels having the same 'key'
- * and emit a new pair containing the expected read-pair files
- */
-reads1
-    .phase(reads2)
-    .ifEmpty { error "Cannot find any matching reads" }
-    .map { read1, read2 -> tuple(read1[0], read1[1], read2[1]) }
-    .set { read_pairs } 
-
-/*
- * the reference index
- */
 genome_index = file(params.index)
-
-/*
- * the output
- */
-outdir = file(params.out)
+read1 = file(params.read1)
+read2 = file(params.read2)
+out = file(params.out)
+prefix = readPrefix(read1, '*_1.fastq.gz')
 
 process kallisto {
-    tag "$pair_id"
 
     input:
     file genome_index
-    file outdir
-    set pair_id, file(read1), file(read2) from read_pairs
+    file(read1)
+    file(read2)
+    file(out)
     
     output:
-    set pair_id, 'abundance.h5' into results
-    set pair_id, 'abundance.txt' into results
-    set pair_id, 'run_info.json' into results
+    file '*.abundance.h5' into results
+    file '*.abundance.txt' into results
+    file '*.run_info.json' into results
  
     """
-    kallisto quant -i $genome_index -o $outdir $read1 $read2
+    kallisto quant -i $genome_index -o /tmp $read1 $read2
+    mv /tmp/abundance.h5 ./${prefix}.abundance.h5
+    mv /tmp/abundance.txt ./${prefix}.abundance.txt
+    mv /tmp/run_info.json ./${prefix}.run_info.json
     """
 }
 
-/*
- * Step 4. collect the results and save them
- */
-results
-  .subscribe { tuple ->
-    def fileName = "abundance_${tuple[0]}.h5" 
-    tuple[1].copyTo(fileName)
-    println "Saving: $fileName"
-  }
+results.subscribe { 
+    log.info "Copying results to file: ${out}/${it.name}"
+    it.copyTo(out)
+ }
 
 /* 
  * Helper function, given a file Path 
