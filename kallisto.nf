@@ -1,10 +1,10 @@
 #!/usr/bin/env nextflow
 
-params.read1 = "/tmp/NA18238-b_S9_10k_1.fastq.gz"
-params.read2 = "/tmp/NA18238-b_S9_10k_2.fastq.gz"
-params.index = "/tmp/gencode.v19.lncRNA_transcripts.idx"
-params.out = "/tmp"
-
+params.read1 = "s3://averafastq/everything_else/NA18238-b_S9_10k_1.fastq.gz"
+params.read2 = "s3://averafastq/everything_else/NA18238-b_S9_10k_2.fastq.gz"
+params.index = "s3://averagenomedb/kallisto/gencode.v19.lncRNA_transcripts.idx"
+params.out = "/shared"
+ 
 genome_index = file(params.index)
 read1 = file(params.read1)
 read2 = file(params.read2)
@@ -17,13 +17,13 @@ process kallisto {
     file read2
     file genome_index
     file outdir
-
+    
     output:
-    stdout into results
-
+    file 'abundance.h5'
+    file 'abundance.txt'
+    file 'run_info.json'
+ 
     """
     kallisto quant -i $genome_index -o $outdir $read1 $read2
     """
 }
-
-results.subscribe { print it }
