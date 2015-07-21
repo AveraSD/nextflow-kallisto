@@ -46,8 +46,3 @@ process kallisto {
 results.subscribe {
     log.info "Copying results to file: ${out}/${it.name}"
     it.copyTo(out)
-<<<<<<< HEAD
-}
-=======
- }
->>>>>>> 16884c45588e322c7149c14301549ba0be349e97
