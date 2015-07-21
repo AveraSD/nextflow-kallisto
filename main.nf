@@ -1,12 +1,5 @@
 #!/usr/bin/env nextflow
 
-/*
- * params.read1 = "s3://averafastq/everything_else/NA18238-b_S9_10k_1.fastq.gz"
- * params.read2 = "s3://averafastq/everything_else/NA18238-b_S9_10k_2.fastq.gz"
- * params.index = "s3://averagenomedb/kallisto/gencode.v19.lncRNA_transcripts.idx"
- * params.out = "results/"
- */
-
 params.read1 = Channel.fromPath('./data/*_1.fastq.gz')
 params.read2 = Channel.fromPath('./data/*_2.fastq.gz')
 params.index = "/data/kallisto/gencode.v19.lncRNA_transcripts.idx"
@@ -27,23 +20,20 @@ log.info "Output dir         : ${params.out}"
 log.info ""
 
 genome_index = file(params.index)
-out = file(params.out)
+out = file(params.out, type: 'dir')
 
 process kallisto {
 
     input:
     file genome_index
-    /*file(read1)*/
-    /*file(read2)*/
     file read1 from params.read1
     file read2 from params.read2
-    file(out)
-    
+
     output:
     file '*.abundance.h5' into results
     file '*.abundance.txt' into results
     file '*.run_info.json' into results
- 
+
     """
     prefix=\$(echo $read1 | sed 's/_.*//')
     kallisto quant -i $genome_index -o /tmp $read1 $read2
@@ -53,7 +43,7 @@ process kallisto {
     """
 }
 
-results.subscribe { 
+results.subscribe {
     log.info "Copying results to file: ${out}/${it.name}"
     it.copyTo(out)
- }
+}
